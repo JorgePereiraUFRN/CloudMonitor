@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.7"/>
+	<classpathentry kind="lib" path="asm-3.1.jar"/>
+	<classpathentry kind="lib" path="jersey-apache-client-1.8.jar"/>
+	<classpathentry kind="lib" path="jersey-atom-abdera-1.8.jar"/>
+	<classpathentry kind="lib" path="jersey-client-1.8.jar"/>
+	<classpathentry kind="lib" path="jersey-core-1.8.jar"/>
+	<classpathentry kind="lib" path="jersey-guice-1.8.jar"/>
+	<classpathentry kind="lib" path="jersey-json-1.8.jar"/>
+	<classpathentry kind="lib" path="jersey-multipart-1.8.jar"/>
+	<classpathentry kind="lib" path="jersey-server-1.8.jar"/>
+	<classpathentry kind="lib" path="jersey-simple-server-1.8.jar"/>
+	<classpathentry kind="lib" path="jersey-spring-1.8.jar"/>
+	<classpathentry kind="lib" path="tomcatLibs/ant.jar"/>
+	<classpathentry kind="lib" path="tomcatLibs/catalina-ant.jar"/>
+	<classpathentry kind="lib" path="tomcatLibs/catalina.jar"/>
+	<classpathentry kind="lib" path="tomcatLibs/tomcat-coyote.jar"/>
+	<classpathentry kind="lib" path="tomcatLibs/tomcat-util.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
