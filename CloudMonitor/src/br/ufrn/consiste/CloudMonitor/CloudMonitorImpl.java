@@ -3,167 +3,247 @@ package br.ufrn.consiste.CloudMonitor;
 import java.io.File;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 import org.apache.catalina.ant.DeployTask;
 
-import br.ufrn.consiste.CloudMonitor.model.Machine;
-import br.ufrn.consiste.CloudMonitor.model.Thresholds;
-import br.ufrn.consiste.VmMonitor.resources.ResourcesUsage;
+import br.ufrn.consiste.CloudMonitor.DAO.ClientDaoInterface;
+import br.ufrn.consiste.CloudMonitor.DAO.ClientDaoJdbc;
+import br.ufrn.consiste.CloudMonitor.DAO.MachineDaoInterface;
+import br.ufrn.consiste.CloudMonitor.DAO.MachineDaoJdbc;
+import br.ufrn.consiste.CloudMonitor.DAO.ResourceUsageDaoInterface;
+import br.ufrn.consiste.CloudMonitor.DAO.ResourceUsageDaoJdbc;
+import br.ufrn.consiste.CloudMonitor.Exceptions.DAOException;
+import br.ufrn.consiste.CloudMonitor.Exceptions.DataValidationException;
+import br.ufrn.consiste.CloudMonitor.Validation.DataValidation;
+import br.ufrn.consiste.CloudMonitor.monitoring.MonitoreVMs;
+import br.ufrn.consiste.model.Client;
+import br.ufrn.consiste.model.Machine;
+import br.ufrn.consiste.model.ResourcesUsage;
+import br.ufrn.consiste.model.Thresholds;
 
 public class CloudMonitorImpl extends UnicastRemoteObject implements
 		CloudMonitor {
 
+	private static ClientDaoInterface clientDao2 = new ClientDaoJdbc();
+	private static ResourceUsageDaoInterface resourceUsageDao2 = new ResourceUsageDaoJdbc();
+	private MachineDaoInterface machineDao = new MachineDaoJdbc();
+	private DataValidation validation = new DataValidation();
+
 	protected CloudMonitorImpl() throws RemoteException {
 		super();
-		new MonitoreVMs(clients, machinesClient).start();
-	}
 
-	// map<idclient, client>
-	private static final Map<Long, Client> clients = Collections
-			.synchronizedMap(new HashMap<Long, Client>());
-	// map<idCliet, map<machineId, machine>>
-	private static final Map<Long, Map<Long, Machine>> machinesClient = Collections
-			.synchronizedMap(new HashMap<Long, Map<Long, Machine>>());
-
-	@Override
-	public long register(Client callbakClient) throws RemoteException {
-
-		long id = clients.size();
-
-		clients.put(id, callbakClient);
-		machinesClient.put(id, new HashMap<Long, Machine>());
-
-		return id;
+		new MonitoreVMs().start();
 	}
 
 	@Override
-	public void unregister(long clientId) throws RemoteException {
+	public long register(String rmiURL) throws RemoteException {
 
-		clients.remove(clientId);
-		machinesClient.remove(clientId);
+		try {
+
+			validation.checkEmptyStgring(rmiURL);
+
+			Client c = new Client();
+			c.setRmiURL(rmiURL);
+			c = clientDao2.save(c);
+
+			return c.getId();
+
+		} catch (DAOException | DataValidationException e) {
+			e.printStackTrace();
+			throw new RemoteException(e.getMessage());
+		}
 
 	}
 
 	@Override
-	public long monitoreVM(long clientID, String ipVm, int tomcatPort,
+	public void unregister(Long clientId) throws RemoteException {
+
+		try {
+
+			validation.checkClient(clientId);
+
+			Client c = clientDao2.findById(clientId);
+
+			clientDao2.delete(c);
+
+		} catch (DAOException | DataValidationException e) {
+			e.printStackTrace();
+			throw new RemoteException(e.getMessage());
+		}
+
+	}
+
+	@Override
+	public long monitoreVM(Long clientID, String ipVm, int tomcatPort,
 			String tomcatUser, String tomcatPassword, Thresholds thresholds)
 			throws RemoteException {
 
-		deploymentVmMonitor(ipVm, tomcatPort, tomcatUser, tomcatPassword);
+		Client c;
+		try {
 
-		/*
-		 * //gambiarra rever isso no projeto VmMonitor new
-		 * RetrieveMetrics("http://" + ipVm + ":" + tomcatPort + "/VmMonitor")
-		 * .getLastMetricsVM();
-		 */
+			validation.checkClient(clientID);
 
-		Map<Long, Machine> machines = machinesClient.get(clientID);
+			validation.checkEmptyStgring(ipVm);
 
-		if (machines != null) {
+			validation.checkNumberPort(tomcatPort);
+
+			validation.checkThresholds(thresholds);
+
+			validation.checkIp(ipVm);
+
+			c = clientDao2.findById(clientID);
+
+			deploymentVmMonitor(ipVm, tomcatPort, tomcatUser, tomcatPassword);
+
 			Machine m = new Machine();
 
 			m.setIp(ipVm);
 			m.setTomCatPort(tomcatPort);
 			m.setThresholds(thresholds);
-			m.setId(machines.size());
+			m.setTomcatUser(tomcatUser);
+			m.setClientId(clientID);
 
-			machines.put(m.getId(), m);
+			m = machineDao.save(m);
 
-			System.out.println("nova vm cadastrada");
 			return m.getId();
+		} catch (DAOException | DataValidationException e) {
+			e.printStackTrace();
+			throw new RemoteException(e.getMessage());
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new RemoteException("Erro inesperado: " + e.getMessage());
 		}
-		return 0;
+
 	}
 
 	@Override
-	public void monitoringVMCancel(long clientId, long vmId)
+	public void monitoringVMCancel(Long clientId, Long vmId)
 			throws RemoteException {
 
-		Map<Long, Machine> machines = machinesClient.get(clientId);
+		try {
+			
+			validation.checkClient(clientId);
+			
+			validation.checkMachine(vmId);
 
-		if (machines != null) {
-			machines.remove(vmId);
+
+			Machine m = machineDao.findById(vmId);
+
+
+			if (m.getClientId() != clientId) {
+				throw new RemoteException("A maquina " + vmId
+						+ " não pertence ao cliente " + clientId);
+			}
+
+			machineDao.delete(m);
+
+		} catch (DAOException | DataValidationException e) {
+			e.printStackTrace();
+			throw new RemoteException(e.getMessage());
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new RemoteException("Erro inesperado: " + e.getMessage());
 		}
-
 	}
 
 	private void deploymentVmMonitor(String ip, int port, String tomcatUser,
 			String tomcatPassword) {
 
-		DeployTask task = new DeployTask();
-		task.setUrl("http://" + ip + ":" + port + "/manager/text");
-		task.setUsername(tomcatUser);
-		task.setPassword(tomcatPassword);
-		task.setPath("/VmMonitor");
-		task.setWar(new File("VmMonitor.war").getAbsolutePath());
+		try {
+			DeployTask task = new DeployTask();
+			task.setUrl("http://" + ip + ":" + port + "/manager/text");
+			task.setUsername(tomcatUser);
+			task.setPassword(tomcatPassword);
+			task.setPath("/VmMonitor");
+			task.setWar(new File("VmMonitor.war").getAbsolutePath());
 
-		task.execute();
+			task.execute();
+
+		} catch (Exception e) {
+			System.out.print("Erro ao implantar VmMonitor: " + e.getMessage());
+		}
 
 	}
 
+	
 	@Override
-	public Map<Long, ResourcesUsage> getMestricsVMs(long clientId, Long[] VMsId)
+	public Map<Long, ResourcesUsage> getMestricsVMs(Long clientId, Long[] VMsId)
 			throws RemoteException {
 
 		Map<Long, ResourcesUsage> metrics = new HashMap<Long, ResourcesUsage>();
 
-		ExecutorService executor = Executors.newCachedThreadPool();
-
-		List<Future<ResourcesUsage>> futureList = new ArrayList<Future<ResourcesUsage>>();
-
-		Map<Long, Machine> machines = machinesClient.get(clientId);
-
-		Set<Long> machinesId = machines.keySet();
-
-		for (long id : machinesId) {
-
-			final Machine m = machines.get(id);
-
-			Future<ResourcesUsage> future = executor
-					.submit(new Callable<ResourcesUsage>() {
-
-						@Override
-						public ResourcesUsage call() throws Exception {
-							return new RetrieveMetrics("http://" + m.getIp()
-									+ ":" + m.getTomCatPort()
-									+ "/VmMonitor/Metrics")
-									.getAverageResoucesUsage();
-						}
-					});
-
-			futureList.add(future);
-
-		}
-
+		Client c;
 		try {
-			int i = 0;
+			validation.checkClient(clientId);
+			
 
-			for (long id : machinesId) {
+			for (long id : VMsId) {
+				
+				validation.checkMachine(id);
 
-				ResourcesUsage r = futureList.get(i++).get();
-				if (r != null)
-					metrics.put(id, r);
+				Machine m = machineDao.findById(id);
+
+				if (m.getClientId() != clientId) {
+					throw new RemoteException("A maquina " + id
+							+ " não pertence ao cliente " + clientId);
+				}
+
+				Date dtInit = new Date();
+				Date dtEnd = new Date();
+
+				dtEnd.setHours(dtEnd.getHours() - 12);
+
+				ResourcesUsage rUsage = resourceUsageDao2
+						.getAverageResourceUsage(dtInit, dtEnd, id);
+
+				metrics.put(id, rUsage);
 
 			}
 
-		} catch (InterruptedException | ExecutionException e) {
-			// TODO Auto-generated catch block
+		} catch (DAOException | DataValidationException e) {
 			e.printStackTrace();
+			throw new RemoteException(e.getMessage());
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new RemoteException("Erro inesperado: " + e.getMessage());
 		}
 
 		return metrics;
+	}
+
+	@Override
+	public void updatThresholds(Long clientId, Long vmId, Thresholds thresholds)
+			throws RemoteException {
+		
+		try {
+			validation.checkClient(clientId);
+			
+			validation.checkClient(clientId);
+			
+			validation.checkThresholds(thresholds);
+			
+			Machine m = machineDao.findById(vmId);
+
+			if (m.getClientId() != clientId) {
+				throw new RemoteException("A maquina " + vmId
+						+ " não pertence ao cliente " + clientId);
+			}
+			
+			m.setThresholds(thresholds);
+			
+			machineDao.update(m);		
+			
+		} catch (DataValidationException | DAOException e) {
+			throw new RemoteException(e.getMessage());
+		}catch (Exception e) {
+			e.printStackTrace();
+			throw new RemoteException("Erro inesperado: " + e.getMessage());
+		}
+
+		
 	}
 
 }

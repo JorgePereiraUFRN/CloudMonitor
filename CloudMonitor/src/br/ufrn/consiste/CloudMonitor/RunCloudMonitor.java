@@ -6,7 +6,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
 
-public class TestCloudMonitor {
+public class RunCloudMonitor {
 
 	public static void main(String[] args) {
 		String portNum, registryURL;
@@ -17,7 +17,7 @@ public class TestCloudMonitor {
 			CloudMonitor exportedObj = new CloudMonitorImpl();
 			registryURL = "rmi://localhost:" + RMIPortNum + "/CloudMonitor";
 			Naming.rebind(registryURL, exportedObj);
-			System.out.println("Callback Server ready.");
+			System.out.println("Cloud Monitor is running.");
 		} catch (Exception re) {
 			re.printStackTrace();
 			System.out.println("Exception: " + re);

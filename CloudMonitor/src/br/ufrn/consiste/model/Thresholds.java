@@ -1,14 +1,16 @@
-package br.ufrn.consiste.CloudMonitor.model;
+package br.ufrn.consiste.model;
 
 import java.io.Serializable;
 
+
 public class Thresholds implements Serializable {
 	
+
 	private double cpuMinThreshold;
-	private double memoryMinThreshold;
 	private double storageMinThreshold;
 	private long txBytesMinThreshold;
 	private long rxBytesMinThreshold;
+	private double memoryMinThreshold;
 	
 	private double cpuMaxThreshold;
 	private double memoryMaxThreshold;
@@ -16,7 +18,8 @@ public class Thresholds implements Serializable {
 	private long txBytesMaxThreshold;
 	private long rxBytesMaxThreshold;
 	
-	
+
+
 	public double getCpuMinThreshold() {
 		return cpuMinThreshold;
 	}

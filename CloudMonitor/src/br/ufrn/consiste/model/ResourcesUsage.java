@@ -1,4 +1,4 @@
-package br.ufrn.consiste.VmMonitor.resources;
+package br.ufrn.consiste.model;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -7,13 +7,24 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 @XmlRootElement
 public class ResourcesUsage implements Serializable{
-
+	
 	private double cpuUsage;
 	private double memoryUsage;
 	private double storageUsage;
 	private long txBytes;
 	private long rxBytes;
 	private Date date;
+	
+	private long machineId;
+	
+
+	public long getMachineId() {
+		return machineId;
+	}
+
+	public void setMachineId(long machineId) {
+		this.machineId = machineId;
+	}
 
 	public ResourcesUsage() {
 		date = new Date();
